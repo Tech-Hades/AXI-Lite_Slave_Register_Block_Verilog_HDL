@@ -1,0 +1,73 @@
+module axi_lite_slave (
+    input  wire        clk,
+    input  wire        rst_n,
+
+    // Write Address Channel
+    input  wire        awvalid,
+    input  wire [3:0]  awaddr,
+    output reg         awready,
+
+    // Write Data Channel
+    input  wire        wvalid,
+    input  wire [31:0] wdata,
+    output reg         wready,
+
+    // Write Response Channel
+    output reg         bvalid,
+    input  wire        bready,
+
+    // Read Address Channel
+    input  wire        arvalid,
+    input  wire [3:0]  araddr,
+    output reg         arready,
+
+    // Read Data Channel
+    output reg         rvalid,
+    output reg [31:0]  rdata,
+    input  wire        rready
+);
+
+    reg [31:0] regs [0:3];
+    integer i;
+
+    // WRITE LOGIC
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            awready <= 0;
+            wready  <= 0;
+            bvalid  <= 0;
+            for (i = 0; i < 4; i = i + 1)
+                regs[i] <= 0;
+        end else begin
+            awready <= awvalid && !awready;
+            wready  <= wvalid && !wready;
+
+            if (awvalid && wvalid && !bvalid) begin
+                regs[awaddr[3:2]] <= wdata;
+                bvalid <= 1;
+            end
+
+            if (bvalid && bready)
+                bvalid <= 0;
+        end
+    end
+
+    // READ LOGIC
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            arready <= 0;
+            rvalid  <= 0;
+            rdata   <= 0;
+        end else begin
+            arready <= arvalid && !arready;
+
+            if (arvalid && !rvalid) begin
+                rdata  <= regs[araddr[3:2]];
+                rvalid <= 1;
+            end
+
+            if (rvalid && rready)
+                rvalid <= 0;
+        end
+    end
+endmodule
